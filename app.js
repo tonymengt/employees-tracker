@@ -178,55 +178,134 @@ addDepartment = () => {
     });
 };
 
-
 addRole = () => {
+  const departmentList = [];
+  db.query(`SELECT * FROM department`, (err, results) => {
+    if (err) throw err;
+    results.forEach((dep) => {
+      let object = {
+        name: dep.department_name,
+        value: dep.id,
+      };
+      departmentList.push(object);
+    });
+  });
 
-    const departmentList = [];
-    db.query(`SELECT * FROM department`, (err, results) => {
-        if (err) throw err;
-        results.forEach( (dep) => {
-            let object = {
-                name: dep.department_name,
-                value: dep.id
-            }
-            departmentList.push(object);
-        });
-    })
-
-    inquirer.prompt([
-        {
-            type: 'input',
-            name: 'title',
-            message: 'Please enter the name of the role.',
+  inquirer
+    .prompt([
+      {
+        type: "input",
+        name: "title",
+        message: "Please enter the name of the role.",
+      },
+      {
+        type: "input",
+        name: "salary",
+        message: "Please enter the salary for this role.",
+        validate: (data) => {
+          if (data) {
+            return true;
+          } else {
+            console.log(
+              "Please provide the salray information in numeric characters."
+            );
+            return false;
+          }
         },
-        {
-            type: 'input',
-            name: 'salary',
-            message: "Please enter the salary for this role.",
-            validate: (data) => {
-                if (data) {
-                    return true;
-                } else {
-                    console.log('Please provide the salray information in numeric characters.');
-                    return false;
-                }
-            }
-        },
-        {
-            type: 'list',
-            name: 'department_id',
-            message: "Please select the department this role belongs to.",
-            choices: departmentList
-        }
+      },
+      {
+        type: "list",
+        name: "department_id",
+        message: "Please select the department this role belongs to.",
+        choices: departmentList,
+      },
     ])
     .then((response) => {
-        const sql = `INSERT INTO roles (title, salary, department_id) VALUES (?,?,?)`;
-        const input = [response.title, response.salary, response.department_id];
-        db.query(sql, input, (err, results) => {
-            if (err) throw err;
-            console.log(`Added new ${response.title} to the roles table.`);
-            promptUser();
-        })
-    })
+      const sql = `INSERT INTO roles (title, salary, department_id) VALUES (?,?,?)`;
+      const input = [response.title, response.salary, response.department_id];
+      db.query(sql, input, (err, results) => {
+        if (err) throw err;
+        console.log(`Added new ${response.title} to the roles table.`);
+        promptUser();
+      });
+    });
+};
 
-}
+addEmployee = () => {
+  const roleList = [];
+  db.query(`SELECT DISTINCT id, title FROM roles`, (err, results) => {
+    results.forEach((data) => {
+      let object = {
+        name: data.title,
+        value: data.id,
+      };
+      roleList.push(object);
+    });
+  });
+  const managerList = [{ name: "NULL", value: 0 }];
+  db.query(
+    `SELECT CONCAT(first_name, " ", last_name) as name, id FROM employee where manager_id is NULL`,
+    (err, results) => {
+      results.forEach((data) => {
+        let object = {
+          name: data.name,
+          value: data.id,
+        };
+        managerList.push(object);
+      });
+    }
+  );
+
+  inquirer.prompt([
+    {
+        type: 'input',
+        name: 'firstName',
+        message: "Please enter the employee's first name.",
+        validate: (firstInput) => {
+            if(firstInput) {
+                return true;
+            } else {
+                console.log("Please enter the employee's first name.");
+                return false;
+            }
+        }
+    },
+    {
+        type: 'input',
+        name: 'lastName',
+        message: "Please enter the employee's last name.",
+        validate: (lastInput) => {
+            if(lastInput) {
+                return true;
+            } else {
+                console.log("Please enter the employee's last name.");
+                return false;
+            }
+        }
+    },
+    {
+        type: 'list',
+        name: 'role',
+        message: "Please a role for this employee.",
+        choices: roleList
+    },
+    {
+        type: 'list',
+        name: 'manager',
+        message: "Please a manger for this employee.",
+        choices: managerList
+    }
+  ])
+  .then((response) => {
+    const sql = `INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?,?,?,?)`;
+    let managerId = response.manager == 0 ? null : response.manager;
+    const input = [response.firstName, response.lastName, response.role, managerId];
+
+    db.query(sql, input, (err, results) => {
+        if (err) throw err;
+        console.log(`Added ${response.firstName} ${response.lastName} to the employee table`);
+        
+        promptUser();
+    })
+  })
+};
