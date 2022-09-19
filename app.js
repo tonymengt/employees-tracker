@@ -177,3 +177,56 @@ addDepartment = () => {
       });
     });
 };
+
+
+addRole = () => {
+
+    const departmentList = [];
+    db.query(`SELECT * FROM department`, (err, results) => {
+        if (err) throw err;
+        results.forEach( (dep) => {
+            let object = {
+                name: dep.department_name,
+                value: dep.id
+            }
+            departmentList.push(object);
+        });
+    })
+
+    inquirer.prompt([
+        {
+            type: 'input',
+            name: 'title',
+            message: 'Please enter the name of the role.',
+        },
+        {
+            type: 'input',
+            name: 'salary',
+            message: "Please enter the salary for this role.",
+            validate: (data) => {
+                if (data) {
+                    return true;
+                } else {
+                    console.log('Please provide the salray information in numeric characters.');
+                    return false;
+                }
+            }
+        },
+        {
+            type: 'list',
+            name: 'department_id',
+            message: "Please select the department this role belongs to.",
+            choices: departmentList
+        }
+    ])
+    .then((response) => {
+        const sql = `INSERT INTO roles (title, salary, department_id) VALUES (?,?,?)`;
+        const input = [response.title, response.salary, response.department_id];
+        db.query(sql, input, (err, results) => {
+            if (err) throw err;
+            console.log(`Added new ${response.title} to the roles table.`);
+            promptUser();
+        })
+    })
+
+}
