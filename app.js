@@ -132,11 +132,11 @@ const view = (data) => {
         `;
   } else if (data === "employeeByManager") {
     sql = `SELECT 
-        CONCAT(e1.first_name, " ", e1.last_name) as Manager,
-        e2.first_name as First_Name,
-        e2.last_name as Last_Name
+        CONCAT(e1.first_name, " ", e1.last_name) as Manager_Name,
+        CONCAT(e2.first_name, " ", e2.last_name) as Employee_Name
         FROM employee as e1
-        LEFT JOIN employee as e2 ON e1.manager_id = e2.id`;
+        LEFT JOIN employee as e2 ON e1.manager_id = e2.id
+        `;
   } else {
     sql = `SELECT 
         d.department_name as Department,
@@ -256,56 +256,290 @@ addEmployee = () => {
     }
   );
 
-  inquirer.prompt([
-    {
-        type: 'input',
-        name: 'firstName',
+  inquirer
+    .prompt([
+      {
+        type: "input",
+        name: "firstName",
         message: "Please enter the employee's first name.",
         validate: (firstInput) => {
-            if(firstInput) {
-                return true;
-            } else {
-                console.log("Please enter the employee's first name.");
-                return false;
-            }
-        }
-    },
-    {
-        type: 'input',
-        name: 'lastName',
+          if (firstInput) {
+            return true;
+          } else {
+            console.log("Please enter the employee's first name.");
+            return false;
+          }
+        },
+      },
+      {
+        type: "input",
+        name: "lastName",
         message: "Please enter the employee's last name.",
         validate: (lastInput) => {
-            if(lastInput) {
-                return true;
-            } else {
-                console.log("Please enter the employee's last name.");
-                return false;
-            }
-        }
-    },
-    {
-        type: 'list',
-        name: 'role',
-        message: "Please a role for this employee.",
-        choices: roleList
-    },
-    {
-        type: 'list',
-        name: 'manager',
-        message: "Please a manger for this employee.",
-        choices: managerList
-    }
-  ])
-  .then((response) => {
-    const sql = `INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?,?,?,?)`;
-    let managerId = response.manager == 0 ? null : response.manager;
-    const input = [response.firstName, response.lastName, response.role, managerId];
+          if (lastInput) {
+            return true;
+          } else {
+            console.log("Please enter the employee's last name.");
+            return false;
+          }
+        },
+      },
+      {
+        type: "list",
+        name: "role",
+        message: "Please select a role for this employee.",
+        choices: roleList,
+      },
+      {
+        type: "list",
+        name: "manager",
+        message: "Please select a manger for this employee.",
+        choices: managerList,
+      },
+    ])
+    .then((response) => {
+      const sql = `INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?,?,?,?)`;
+      let managerId = response.manager == 0 ? null : response.manager;
+      const input = [
+        response.firstName,
+        response.lastName,
+        response.role,
+        managerId,
+      ];
 
-    db.query(sql, input, (err, results) => {
+      db.query(sql, input, (err, results) => {
         if (err) throw err;
-        console.log(`Added ${response.firstName} ${response.lastName} to the employee table`);
-        
+        console.log(
+          `Added ${response.firstName} ${response.lastName} to the employee table`
+        );
+
         promptUser();
-    })
-  })
+      });
+    });
 };
+
+updateRole = async () => {
+  const employeeList = [];
+  await db
+    .promise()
+    .query(
+      `SELECT CONCAT(first_name, " ", last_name) as name, id FROM employee`
+    )
+    .then(([rows]) => {
+      rows.forEach((data) => {
+        let object = {
+          name: data.name,
+          value: data.id
+        };
+        employeeList.push(object);
+      });
+    });
+
+  const roleList = [];
+  db.query(`SELECT DISTINCT id, title FROM roles`, (err, results) => {
+    results.forEach((data) => {
+      let object = {
+        name: data.title,
+        value: data.id
+      };
+      roleList.push(object);
+    });
+  });
+
+  inquirer
+    .prompt([
+      {
+        type: "list",
+        name: "employee",
+        message: "Please select the the employee you wish to update.",
+        choices: employeeList,
+      },
+      {
+        type: "list",
+        name: "role",
+        message: "Please select the the employee you wish to update.",
+        choices: roleList,
+      },
+    ])
+    .then((response) => {
+      const sql = `UPDATE employee SET role_id=? WHERE id =?`;
+      const input = [response.role, response.employee];
+
+      db.query(sql, input, (err, results) => {
+        if (err) throw err;
+        console.log(`Employee's role have been updated.`);
+
+        promptUser();
+      });
+    });
+};
+
+
+updateManager = async () => {
+  const employeeList = [];
+  await db
+    .promise()
+    .query(
+      `SELECT CONCAT(first_name, " ", last_name) as name, id FROM employee`
+    )
+    .then(([rows]) => {
+      rows.forEach((data) => {
+        let object = {
+          name: data.name,
+          value: data.id
+        };
+        employeeList.push(object);
+      });
+    });
+
+  const managerList = [{ name: "NULL", value: 0 }];
+  db.query(
+    `SELECT CONCAT(first_name, " ", last_name) as name, id FROM employee where manager_id is NULL`,
+    (err, results) => {
+      results.forEach((data) => {
+        let object = {
+          name: data.name,
+          value: data.id
+        };
+        managerList.push(object);
+      });
+    }
+  );
+
+  inquirer
+    .prompt([
+      {
+        type: "list",
+        name: "employee",
+        message: "Please select a employee.",
+        choices: employeeList,
+      },
+      {
+        type: "list",
+        name: "manager",
+        message: "Please select a manger for this employee.",
+        choices: managerList,
+      },
+    ])
+    .then((response) => {
+      const sql = `UPDATE employee SET manager_id=? WHERE id =?`;
+      const input = [response.manager, response.employee];
+
+      db.query(sql, input, (err, results) => {
+        if (err) throw err;
+        console.log(`updated`);
+
+        promptUser();
+      });
+    });
+};
+
+deleteDepartment = async() => {
+  const dropDepartment = [];
+  await db.promise().query(`SELECT id, department_name FROM department`)
+    .then(([rows])=>{
+        rows.forEach((data) => {
+            let object = {
+              name: data.department_name,
+              value: data.id,
+            };
+            dropDepartment.push(object);
+          });
+    });
+
+  inquirer
+    .prompt([
+      {
+        type: "list",
+        name: "dropDep",
+        message: "Please select the department you wish to delete.",
+        choices: dropDepartment,
+      },
+    ])
+    .then((response) => {
+      const sql = `DELETE FROM department WHERE id =?`;
+      const input = [response.dropDep]
+
+      db.query(sql, input, (err, results) => {
+        if (err) throw err;
+        console.log("Department have been deleted.");
+
+        promptUser();
+      })
+    });
+};
+
+deleteRole = async () => {
+    const dropRole = [];
+    await db.promise().query(`SELECT id, title FROM roles`)
+      .then(([rows])=>{
+          rows.forEach((data) => {
+              let object = {
+                name: data.title,
+                value: data.id,
+              };
+              dropRole.push(object);
+            });
+      });
+  
+    inquirer
+      .prompt([
+        {
+          type: "list",
+          name: "roleDrop",
+          message: "Please select the role you wish to delete.",
+          choices: dropRole,
+        },
+      ])
+      .then((response) => {
+        const sql = `DELETE FROM roles WHERE id =?`;
+        const input = [response.roleDrop]
+  
+        db.query(sql, input, (err, results) => {
+          if (err) throw err;
+          console.log("Role have been deleted.");
+  
+          promptUser();
+        })
+      });
+};
+
+deleteEmployee = async () => {
+    const dropEmployee = [];
+    await db.promise().query(`SELECT id, CONCAT (first_name, " ", last_name) AS name FROM employee`)
+      .then(([rows])=>{
+          rows.forEach((data) => {
+              let object = {
+                name: data.name,
+                value: data.id,
+              };
+              dropEmployee.push(object);
+            });
+      });
+  
+    inquirer
+      .prompt([
+        {
+          type: "list",
+          name: "empDrop",
+          message: "Please select the role you wish to delete.",
+          choices: dropEmployee,
+        },
+      ])
+      .then((response) => {
+        const sql = `DELETE FROM employee WHERE id =?`;
+        const input = [response.empDrop]
+  
+        db.query(sql, input, (err, results) => {
+          if (err) throw err;
+          console.log("Employee have been deleted.");
+  
+          promptUser();
+        })
+      });
+    };
+
+
+viewByDep = () => {
+    
+}

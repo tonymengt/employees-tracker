@@ -27,10 +27,6 @@ VALUES
     ("Letty", "Grady",7, 8),
     ("Tony", "Grey",8, NULL),
     ("April", "May",1, 2),
-    ("Marry", "Up",3, 4),
-    ("Cindy", "Loud",5, 6),
-    ("Tom", "Brown",7, 8),
-    ("Eve", "Johnson",1, 2),
-    ("Isaac", "Wright",5, 6);
+    ("Marry", "Up",3, 4);
 
 
