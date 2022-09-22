@@ -55,10 +55,10 @@ promptUser = () => {
           view("employee");
           break;
         case "View Employees by Department":
-          view("employeeByDepartment");
+          viewByDep();
           break;
         case "View Employees by Manager":
-          view("employeeByManager");
+          viewByManager();
           break;
         case "View Budget":
           view("budget");
@@ -121,22 +121,6 @@ const view = (data) => {
         LEFT JOIN employee as e2 ON e2.id = e.manager_id
         LEFT JOIN roles as r ON e.role_id = r.id 
         LEFT JOIN department as d ON d.id = r.department_id`;
-  } else if (data === "employeeByDepartment") {
-    sql = `SELECT 
-        d.department_name as Department,
-        e.first_name as First_Name,
-        e.last_name as Last_Name
-        FROM department as d
-        LEFT JOIN roles as r ON d.id = r.department_id
-        LEFT JOIN employee as e ON r.id = e.role_id
-        `;
-  } else if (data === "employeeByManager") {
-    sql = `SELECT 
-        CONCAT(e1.first_name, " ", e1.last_name) as Manager_Name,
-        CONCAT(e2.first_name, " ", e2.last_name) as Employee_Name
-        FROM employee as e1
-        LEFT JOIN employee as e2 ON e1.manager_id = e2.id
-        `;
   } else {
     sql = `SELECT 
         d.department_name as Department,
@@ -422,6 +406,9 @@ updateManager = async () => {
       },
     ])
     .then((response) => {
+        if(response.manager == 0){
+            response.manager = null
+        }
       const sql = `UPDATE employee SET manager_id=? WHERE id =?`;
       const input = [response.manager, response.employee];
 
@@ -540,6 +527,103 @@ deleteEmployee = async () => {
     };
 
 
-viewByDep = () => {
-    
+viewByDep = async() => {
+    const viewDep = []
+    await db.promise().query(`SELECT * from department`)
+    .then(([rows]) => {
+        rows.forEach((data) => {
+            let object = {
+                name: data.department_name,
+                value: data.id
+            };
+            viewDep.push(object);
+        });
+    });
+
+    inquirer.prompt([
+        {
+            type: 'list',
+            name: "department",
+            message: "Please select the department you'd like to view.",
+            choices: viewDep
+        }
+    ])
+    .then((results) => {
+        const sql = `SELECT 
+        e.id as Employee_ID, 
+        e.first_name as First_Name, 
+        e.last_name as Last_Name, 
+        r.title as Job_Title, 
+        d.department_name as Department, 
+        r.salary as Salaries, 
+        CONCAT(e2.first_name, " ", e2.last_name) as Manager 
+        FROM employee as e 
+        LEFT JOIN employee as e2 ON e2.id = e.manager_id
+        LEFT JOIN roles as r ON e.role_id = r.id 
+        LEFT JOIN department as d ON d.id = r.department_id
+        WHERE department_id = ?`;
+
+        const input = [results.department];
+
+        db.query(sql, input, (err, results) =>{
+            if (err) throw err;
+            console.table(results)
+
+            promptUser();
+        })
+    })
+};
+
+viewByManager = async() => {
+    const viewManager = [{name:"NULL" , value: 0}]
+    await db.promise().query(`SELECT CONCAT(first_name, " ", last_name) as name, id FROM employee WHERE manager_id IS NULL`)
+    .then(([rows]) => {
+        rows.forEach((data) => {
+            let object = {
+                name: data.name,
+                value: data.id
+            };
+            viewManager.push(object);
+        });
+    });
+
+    inquirer.prompt([
+        {
+            type: 'list',
+            name: "manager",
+            message: "Please select the department you'd like to view.",
+            choices: viewManager
+        }
+    ])
+    .then((results) => {
+        const inputVar = []
+        if (results.manager == 0) {
+            inputVar.push('e.manager_id is ?')
+            results.manager = null
+        } else {
+            inputVar.push(`e.manager_id = ?`)
+        }
+        const sql = `SELECT 
+        e.id as Employee_ID, 
+        e.first_name as First_Name, 
+        e.last_name as Last_Name, 
+        r.title as Job_Title, 
+        d.department_name as Department, 
+        r.salary as Salaries, 
+        CONCAT(e2.first_name, " ", e2.last_name) as Manager 
+        FROM employee as e 
+        LEFT JOIN employee as e2 ON e2.id = e.manager_id
+        LEFT JOIN roles as r ON e.role_id = r.id 
+        LEFT JOIN department as d ON d.id = r.department_id
+        WHERE ${inputVar}`;
+
+        const input = [results.manager];
+
+        db.query(sql, input, (err, results) =>{
+            if (err) throw err;
+            console.table(results)
+
+            promptUser();
+        })
+    })
 }
